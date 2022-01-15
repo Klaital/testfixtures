@@ -24,6 +24,7 @@ type Loader struct {
 	fixturesFiles []*fixtureFile
 
 	skipTestDatabaseCheck bool
+	testDatabaseRegexp    *regexp.Regexp
 	location              *time.Location
 
 	template           bool
@@ -47,7 +48,7 @@ type insertSQL struct {
 }
 
 var (
-	testDatabaseRegexp = regexp.MustCompile("(?i)test")
+	defaultTestDatabaseRegexp = regexp.MustCompile("(?i)test")
 
 	errDatabaseIsRequired = fmt.Errorf("testfixtures: database is required")
 	errDialectIsRequired  = fmt.Errorf("testfixtures: dialect is required")
@@ -60,6 +61,7 @@ func New(options ...func(*Loader) error) (*Loader, error) {
 		templateLeftDelim:  "{{",
 		templateRightDelim: "}}",
 		templateOptions:    []string{"missingkey=zero"},
+		testDatabaseRegexp: regexp.MustCompile("(?i)test"),
 	}
 
 	for _, option := range options {
@@ -322,6 +324,15 @@ func TemplateData(data interface{}) func(*Loader) error {
 	}
 }
 
+// DangerousSetTestDatabaseName allows the caller to configure the pattern for allowable database names.
+// Make sure your customer-facing databases will not match this.
+func DangerousSetTestDatabaseRegexp(pattern string) func(l *Loader) error {
+	return func(l *Loader) error {
+		l.testDatabaseRegexp = regexp.MustCompile(pattern)
+		return nil
+	}
+}
+
 // EnsureTestDatabase returns an error if the database name does not contains
 // "test".
 func (l *Loader) EnsureTestDatabase() error {
@@ -329,7 +340,10 @@ func (l *Loader) EnsureTestDatabase() error {
 	if err != nil {
 		return err
 	}
-	if !testDatabaseRegexp.MatchString(dbName) {
+	if l.testDatabaseRegexp == nil {
+		l.testDatabaseRegexp = defaultTestDatabaseRegexp
+	}
+	if !l.testDatabaseRegexp.MatchString(dbName) {
 		return fmt.Errorf(`testfixtures: database "%s" does not appear to be a test database`, dbName)
 	}
 	return nil
