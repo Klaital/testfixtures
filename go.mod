@@ -1,4 +1,4 @@
-module github.com/go-testfixtures/testfixtures/v3
+module github.com/klaital/testfixtures/v3
 
 require (
 	github.com/denisenkom/go-mssqldb v0.11.0
